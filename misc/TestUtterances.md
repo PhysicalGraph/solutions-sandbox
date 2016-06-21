@@ -65,7 +65,8 @@ for a single, unnamed lock
 
 
 ## DoorStatusIntent (4g. Door Status)
-for all locks
+**NOT YET IMPLEMENTED**
+for all doors
 * Alexa, ask smart things are my doors closed (all closed)
 * Alexa, ask smart things are my doors open (some closed)
 * Alexa, tell smart things to check my doors (some closed)
@@ -73,6 +74,7 @@ for all locks
 * Alexa, ask smart things about the status of my doors (no doors)
 
 ## DoorQueryIntent (4g. Door Status)
+**NOT YET IMPLEMENTED**
 for a single, named door
 * Alexa, ask smart things if my front door is open (door is open)
 * Alexa, ask smart things if my front door is open (door is closed)
@@ -89,5 +91,5 @@ for a single, named door
 
 
 ## HelpIntent (4i. Help intent)
-* Alexa, ask smart things for help
+* [ ] Alexa, ask smart things for help - **FAIL - no reprompt, should end session**
 * Alexa, tell smart things to help me

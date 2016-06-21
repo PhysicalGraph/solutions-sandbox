@@ -688,6 +688,9 @@ def lockLockCommand(List deviceList) {
             // lock is in a known state
             logLine += "Issuing lock command to ${device.displayName} state: $currentState"
             device.lock()
+            if (currentState == 'locked') {
+                logLine += "(we see ${device.displayName} as already in locked state, but we issued another lock command anyway)"
+            }
             lockingDeviceDisplayNames << device.displayName
             lockingLoopLog << logLine
         } else {
