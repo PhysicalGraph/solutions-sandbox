@@ -749,7 +749,7 @@ def lockStatusCommand(List deviceList) {
     }
     String outputText = ""
     deviceList.each {
-        ## FIXME - use unknown state code from lockLockCommand here as well
+        // FIXME - use unknown state code from lockLockCommand here as well
         device ->
         outputText += "Your ${device.displayName} is ${device.currentValue('lock')}. \n"
     }
