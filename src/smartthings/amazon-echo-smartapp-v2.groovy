@@ -347,8 +347,7 @@ def customPost() {
     if (intentName.startsWith('Lock')) {
         transactionDeviceKind = 'lock'
         transactionDeviceKindPlural = 'locks'
-        if (locks)
-        	transactionCandidateDevices.addAll(locks)
+        transactionCandidateDevices.addAll(locks?:[])
 
         if (transactionCandidateDevices.size() == 0) {
             // User has no matching devices
@@ -381,7 +380,7 @@ def customPost() {
                     // If we have an ambiguous WhichLock slot and ony have one lock, then assume we mean that one
                     transactionDevices = transactionCandidateDevices
                 } else {
-                    return buildSimpleDeviceResponse("some command", interpretedSlots.WhichLock, "I don't know which ${transactionDeviceKind} you mean by ${interpretedSlots.WhichLock}.")
+                    return buildSimpleCustomResponse("some command", interpretedSlots.WhichLock, "I don't know which ${transactionDeviceKind} you mean by ${interpretedSlots.WhichLock}.")
                 }
             }
             // devices should be guaranteed not null and to have length past here
@@ -631,7 +630,7 @@ def launchCommand() {
             'We can also make this card have an image. '
     String repromptText = 'What would you like to do?'
     Map repromptObj = buildOutputSpeechObj(repromptText)
-    return buildSimpleCustomResponseWithReprompt(titleText, sayText, cardText, repromptObj)
+    return buildSimpleCustomResponse(titleText, sayText, cardText)
 }
 
 def stopCommand() {
@@ -651,7 +650,7 @@ def helpCommand() {
             'Epilogue, but keep this whole thing to less than 8000 char'
     String repromptText = 'What would you like to do?'
     Map repromptObj = buildOutputSpeechObj(repromptText)
-    return buildSimpleCustomResponseWithReprompt(titleText, sayText, cardText, repromptObj)
+    return buildSimpleCustomResponse(titleText, sayText, cardText)
 }
 
 /**
@@ -671,37 +670,37 @@ def lockUnlockFailCommand(def singleDevice) {
 
 @Field final List KNOWN_LOCK_STATES = ['locked', 'unlocked']
 def lockLockCommand(List deviceList) {
+    log.trace "lockLockCommand($deviceList)"
     String titleObject = "the ${deviceList[0]}"
     if (transactionUsedAllDevicesSlot == true) {
         titleObject = 'all locks'
     }
-    log.trace "lockLockCommand($deviceList)"
 
     List lockingDeviceDisplayNames = []
     List badStateDeviceDisplayNames = []
-    List lockingLoopLog = []
+    List loopLogs = []
     deviceList.each {
         device ->
         String currentState = device?.currentValue('lock')
-        String logLine = ""
         if (KNOWN_LOCK_STATES.contains(currentState)) {
             // lock is in a known state
-            logLine += "Issuing lock command to ${device.displayName} state: $currentState"
+
+            String logLine = "Issuing lock command to ${device.displayName}"
             device.lock()
             if (currentState == 'locked') {
-                logLine += "(we see ${device.displayName} as already in locked state, but we issued another lock command anyway)"
+                logLine += " (we see ${device.displayName} as already in a locked state, but we issued another lock command anyway)"
             }
             lockingDeviceDisplayNames << device.displayName
-            lockingLoopLog << logLine
+            loopLogs << logLine
         } else {
             // lock is in an unknonwn state
-            String unknownStateMsg = "$device.displayName is in an unknown state: $currentState"
-            lockingLoopLog << "WARN: $unknownStateMsg"
-            log.warn unknownStateMsg
+            String warnMsg = "$device.displayName is in an unknown state: $currentState"
+            loopLogs << "WARN: $warnMsg"
+            log.warn warnMsg
             badStateDeviceDisplayNames << device.displayName
         }
     }
-    log.info lockingLoopLog.join('   \n')
+    log.info loopLogs.join('   \n')
 
     List responseSpeeches = []
     // prepare the response
@@ -751,10 +750,17 @@ def lockStatusCommand(List deviceList) {
         statusTarget = deviceList[0].displayName
     }
     String outputText = ""
+    List goodStateDevices = []
+    List badStateDevices = []
     deviceList.each {
         // FIXME - use unknown state code from lockLockCommand here as well
         device ->
-        outputText += "Your ${device.displayName} is ${device.currentValue('lock')}. \n"
+        if (KNOWN_LOCK_STATES.contains(device.currentValue('lock'))) {
+            goodStateDevices << device
+        } else {
+            badStateDevices << device
+        }
+        //outputText += "Your ${device.displayName} is ${device.currentValue('lock')}. \n"
     }
 
     return buildSimpleDeviceResponse("status", statusTarget, outputText)
@@ -781,9 +787,10 @@ def lockQueryCommand(def singleDevice, String queryState) {
         log.warn "We don't know about the lock state queried: $queryState. Assuming it means 'locked'"
     }
 
-    def deviceCurrentState = singleDevice.currentValue('lock')
+    def deviceCurrentState = singleDevice?.currentValue('lock')?.toLowerCase()?:'unknown'
+
     String outputText
-    if (normalQueryState == singleDevice.currentLock.toLowerCase()) {
+    if (normalQueryState == deviceCurrentState.toLowerCase()) {
         // Yes!
         outputText = "Yes, your ${singleDevice.displayName} is $normalQueryState."
     } else if (!KNOWN_LOCK_STATES.contains(deviceCurrentState.toLowerCase())) {
