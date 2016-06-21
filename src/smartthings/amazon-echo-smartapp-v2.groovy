@@ -302,7 +302,7 @@ def customGet() {
 @Field String transactionDeviceKind = null
 @Field String transactionDeviceKindPlural = null
 @Field List transactionCandidateDevices = []
-@Field List transactonDevices = []
+@Field List transactionDevices = []
 @Field Boolean transactionUsedAllDevicesSlot = false
 /**
  * handles custom skill POST requests
@@ -312,12 +312,10 @@ def customGet() {
 def customPost() {
     Map responseToLambda = [:]
     // request.JSON
-    log.debug request.JSON
-    log.debug "the JSON body of the request"
+    log.debug "the JSON body of the request ${request.JSON}"
     def customSkillReq = request?.JSON // preserve the request
     def sessionAttrsObj = customSkillReq?.sessionAttributes
     def requestObj = customSkillReq?.request
-    log.debug(requestObj)
 
     // what was the intended command?
     String intentName = customSkillReq?.request?.intent?.name
@@ -338,11 +336,11 @@ def customPost() {
 
 
     /*
-set if user said an utterance a slot which references all devices of a type:
-- AllLocks
-- AllLocks
-NOTE: Utterances whould never include both the inidivual device slot and all devices slot
-in the same utrterance,
+    set if user said an utterance a slot which references all devices of a type:
+    - AllLocks
+    - AllLocks
+    NOTE: Utterances whould never include both the inidivual device slot and all devices slot
+    in the same utrterance,
 */
 
     // specific to locks
@@ -356,23 +354,31 @@ in the same utrterance,
             log.debug "No devices having the $transactionDeviceKind capability are among the user's SmartThings devices"
             return buildSimpleDeviceResponse("No $transactionDeviceKindPlural devices found", "Sorry, I couldn't find any $transactionDeviceKindPlural connected to your SmartThings setup.")
         } else if (interpretedSlots?.AllLocks != null || transactionCandidateDevices.size() == 1) {
+            // User has specified All Locks OR has only one lock configured
             if (interpretedSlots?.AllLocks != null) {
                 transactionUsedAllDevicesSlot = true
             }
-            transactonDevices = transactionCandidateDevices
+            transactionDevices = transactionCandidateDevices
         } else if (interpretedSlots?.WhichLock != null) {
+            // User has specified a specific lock
             log.debug "Evaluating each known device to see if it matches ${interpretedSlots?.WhichLock}"
+            List deviceNameCompLog = []
             transactionCandidateDevices.each {
                 device ->
-                log.debug "device display name '${device.displayName.toLowerCase()}' WhichLock slot value '${interpretedSlots.WhichLock.toLowerCase()}'"
+                String debugLine = "device display name '${device.displayName.toLowerCase()}' == WhichLock slot value '${interpretedSlots.WhichLock.toLowerCase()}' ? "
                 if (device.displayName.toLowerCase().replaceAll(' ','') == interpretedSlots.WhichLock.toLowerCase().replaceAll(' ','')) {
-                    transactonDevices.add(device)
+                    transactionDevices.add(device)
+                    debugLine += 'YES'
+                } else {
+                    debugLine += 'NO'
                 }
+                deviceNameCompLog << debugLine
             }
-            if (transactonDevices == null || transactonDevices.size() == 0) {
+            log.debug deviceNameCompLog.join('   \n')
+            if (transactionDevices == null || transactionDevices.size() == 0) {
                 if (transactionCandidateDevices.size() == 1) {
                     // If we have an ambiguous WhichLock slot and ony have one lock, then assume we mean that one
-                    transactonDevices = transactionCandidateDevices
+                    transactionDevices = transactionCandidateDevices
                 } else {
                     return buildSimpleDeviceResponse("some command", interpretedSlots.WhichLock, "I don't know which ${transactionDeviceKind} you mean by ${interpretedSlots.WhichLock}.")
                 }
@@ -383,17 +389,17 @@ in the same utrterance,
 
     switch (intentName) {
         case 'LockUnlockIntent':
-        responseToLambda = lockUnlockFailCommand(transactonDevices[0]) // Only one lock may be passed to unlock
+        responseToLambda = lockUnlockFailCommand(transactionDevices[0]) // Only one lock may be passed to unlock
         break
         case ('LockDialogIntent' && transactionUsedAllDevicesSlot):
         case 'LockLockIntent':
-        responseToLambda = lockLockCommand(transactonDevices)
+        responseToLambda = lockLockCommand(transactionDevices)
         break
         case 'LockStatusIntent':
-        if (transactonDevices.size() == 1 && interpretedSlots?.LockState != null) {
-            responseToLambda = lockQueryCommand(transactonDevices[0], interpretedSlots.LockState)
+        if (transactionDevices.size() == 1 && interpretedSlots?.LockState != null) {
+            responseToLambda = lockQueryCommand(transactionDevices[0], interpretedSlots.LockState)
         } else {
-            responseToLambda = lockStatusCommand(transactonDevices)
+            responseToLambda = lockStatusCommand(transactionDevices)
         }
         break
         case 'LockSupportedIntent':
@@ -670,23 +676,29 @@ def lockLockCommand(List deviceList) {
 
     List lockingDeviceDisplayNames = []
     List badStateDeviceDisplayNames = []
+    List lockingLoopLog = []
     deviceList.each {
         device ->
         String currentState = device?.currentValue('lock')
+        String logLine = ""
         if (KNOWN_LOCK_STATES.contains(currentState)) {
             // lock is in a known state
-            log.info "Issuing lock command to ${device.displayName}"
+            logLine += "Issuing lock command to ${device.displayName}"
             device.lock([delay:250])
             if (currentState == 'locked') {
-                log.info "we see ${device.displayName} as already locked (but we issued another lock command anyway)"
+                logLine += "(we see ${device.displayName} as already in locked state, but we issued another lock command anyway)"
             }
             lockingDeviceDisplayNames << device.displayName
+            lockingLoopLog << logLine
         } else {
             // lock is in an unknonwn state
-            log.warn "$device.displayName is in an unknown state: $currentState"
+            String unknownStateMsg = "$device.displayName is in an unknown state: $currentState"
+            lockingLoopLog << "WARN: $unknownStateMsg"
+            log.warn unknownStateMsg
             badStateDeviceDisplayNames << device.displayName
         }
     }
+    log.info lockingLoopLog.join('   \n')
 
     List responseSpeeches = []
     // prepare the response
@@ -711,6 +723,7 @@ def lockLockCommand(List deviceList) {
 }
 
 String convoList(List listOfStrings, String conjunction="and") {
+    log.trace "convoList($listOfStrings, $conjunction)"
     String conversationalList = ""
     Integer numStringsToJoin = listOfStrings.size()
     Integer ctr = numStringsToJoin
@@ -729,12 +742,14 @@ String convoList(List listOfStrings, String conjunction="and") {
 }
 
 def lockStatusCommand(List deviceList) {
+    log.trace "lockStatusCommand($deviceList)"
     String statusTarget = "your locks"
     if (deviceList.size() == 1) {
         statusTarget = deviceList[0].displayName
     }
     String outputText = ""
     deviceList.each {
+        ## FIXME - use unknown state code from lockLockCommand here as well
         device ->
         outputText += "Your ${device.displayName} is ${device.currentValue('lock')}. \n"
     }
@@ -750,7 +765,7 @@ def lockStatusCommand(List deviceList) {
  * @return  AVS Custom Skill response formatted map (will be converted to JSON)
  */
 def lockQueryCommand(def singleDevice, String queryState) {
-    log.debug "lockQueryCommand: is ${singleDevice.displayName} $queryState"
+    log.trace "lockQueryCommand(${singleDevice.displayName}, $queryState)"
     Set lockCapabilityStates = ['locked', 'unlocked']
     Set lockedSynonyms = ['locked', 'closed', 'shut']
     Set unlockedSynonyms = ['unlocked', 'opened', 'open']
