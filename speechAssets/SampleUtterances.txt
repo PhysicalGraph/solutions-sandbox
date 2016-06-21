@@ -1,8 +1,3 @@
-LockDialogIntent {WhichLock}
-LockDialogIntent {LockOperation}
-LockDialogIntent {UnlockOperation}
-LockDialogIntent to {LockOperation}
-LockDialogIntent to {UnlockOperation}
 
 LockLockIntent to {LockOperation} {WhichLock}
 LockLockIntent to {LockOperation} the {WhichLock}
@@ -14,6 +9,7 @@ LockLockIntent {LockOperation} {WhichLock}
 LockLockIntent {LockOperation} {AllLocks}
 
 LockUnlockIntent to {UnlockOperation} {WhichLock}
+LockUnlockIntent to {UnlockOperation} {AllLocks}
 LockUnlockIntent to {UnlockOperation} the {WhichLock}
 LockUnlockIntent to {UnlockOperation} my {WhichLock}
 
@@ -46,6 +42,9 @@ LockStatusIntent to tell me about {AllLocks}
 LockStatusIntent is {WhichLock} {LockState}
 LockStatusIntent is my {WhichLock} {LockState}
 LockStatusIntent is the {WhichLock} {LockState}
+LockStatusIntent if my {WhichLock} is {LockState}
+LockStatusIntent if the {WhichLock} is {LockState}
+LockStatusIntent if {WhichLock} is {LockState}
 
 LockSupportedIntent what {DoorsOrLocks}
 LockSupportedIntent what {DoorsOrLocks} do you know

@@ -22,31 +22,6 @@
             ]
         },
         {
-            "intent": "LockDialogIntent",
-            "slots": [
-                {
-                    "name": "LockOperation",
-                    "type": "LOCK_OPS"
-                },
-                {
-                    "name": "UnlockOperation",
-                    "type": "UNLOCK_OPS"
-                },
-                {
-                    "name": "WhichLock",
-                    "type": "LOCKS"
-                },
-                {
-                    "name": "AllLocks",
-                    "type": "ALL_LOCKS"
-                },
-                {
-                    "name": "LockState",
-                    "type": "LOCK_STATES"
-                }
-            ]
-        },
-        {
             "intent": "LockLockIntent",
             "slots": [
                 {
@@ -73,6 +48,10 @@
                 {
                     "name": "WhichLock",
                     "type": "LOCKS"
+                },
+                {
+                    "name": "AllLocks",
+                    "type": "ALL_LOCKS"
                 }
             ]
         },
@@ -95,3 +74,4 @@
         }
     ]
 }
+

@@ -347,12 +347,13 @@ def customPost() {
     if (intentName.startsWith('Lock')) {
         transactionDeviceKind = 'lock'
         transactionDeviceKindPlural = 'locks'
-        transactionCandidateDevices.addAll(locks)
+        if (locks)
+        	transactionCandidateDevices.addAll(locks)
 
         if (transactionCandidateDevices.size() == 0) {
             // User has no matching devices
             log.debug "No devices having the $transactionDeviceKind capability are among the user's SmartThings devices"
-            return buildSimpleDeviceResponse("No $transactionDeviceKindPlural devices found", "Sorry, I couldn't find any $transactionDeviceKindPlural connected to your SmartThings setup.")
+            return buildSimpleCustomResponse("No $transactionDeviceKindPlural devices found", "Sorry, I couldn't find any $transactionDeviceKindPlural connected to your SmartThings setup.")
         } else if (interpretedSlots?.AllLocks != null || transactionCandidateDevices.size() == 1) {
             // User has specified All Locks OR has only one lock configured
             if (interpretedSlots?.AllLocks != null) {
@@ -663,6 +664,8 @@ def lockUnlockFailCommand(def singleDevice) {
     // if (singleDevice?.displayName?.toLowerCase().startsWith('pod bay door')) {
     //     return buildSimpleDeviceResponse("open", singleDevice.displayName, "I'm sorry, Dave. I'm afraid I can't do that.")
     // }
+    // TODO Needs copy
+    sendNotificationEvent("For security reasons, you are not allowed to unlock doors via Alexa")
     return buildSimpleDeviceResponse("unlock", singleDevice.displayName, "For security reasons, that feature has been disabled. For more information, please refer to the notifications page in your SmartThings mobile app")
 }
 
@@ -806,7 +809,7 @@ def whichDevicesCommand(String transactionDeviceKind=device, String transactionD
     if (!transactionDeviceKindPlural) transactionDeviceKindPlural = 'devices'
     String devicesOutput = ""
     if (deviceList && deviceList.size() == 1 ) {
-        devicesOutput = "I know about one $transactionDeviceKind: ${knownDeviceList[0].displayName}."
+        devicesOutput = "I know about one $transactionDeviceKind: ${deviceList[0].displayName}."
     } else if (deviceList && deviceList.size() > 1 ) {
         devicesOutput =  "I know about the following $transactionDeviceKindPlural: \n"
         Integer ctr = 1
