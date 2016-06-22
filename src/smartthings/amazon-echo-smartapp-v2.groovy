@@ -6,6 +6,8 @@
  * Author: SmartThings
  */
 import groovy.transform.Field
+import static groovy.json.JsonOutput.*
+
 
 @Field String CUSTOM_SKILL_RESPONSE_FORMAT_VERSION = "1.0"
 
@@ -254,41 +256,45 @@ Map buildOutputSpeechObj(String sayText) {
 }
 
 Map buildCustomSkillResponse(Map args) {
-	Boolean doesResponseEndSession = args?.doesResponseEndSession?:true
-	String sayText = args?.sayText
-	String titleText = args?.titleText
-	String cardText = args?.cardText
-	String repromptText = args?.repromptText
+    Boolean shouldEndSessionArg = args?.shouldEndSession
+    String sayText = args?.sayText
+    String titleText = args?.titleText
+    String cardText = args?.cardText
+    String repromptText = args?.repromptText
 
-	Map customSkillResponse = buildBaseCustomSkillReponse()
+    Map responseObj = [:]
 
-	Map responseObj = [:]
-	responseObj.shouldEndSession = doesResponseEndSession
+    if (sayText) {
+        Map outputSpeechObj = buildOutputSpeechObj(sayText)
+        responseObj.outputSpeech = outputSpeechObj
+    }
 
-	if (sayText) {
-		Map outputSpeechObj = buildOutputSpeechObj(sayText)
-		responseObj.outputSpeech = outputSpeechObj
-	}
+    if (titleText) {
+        Map cardObj = [type: 'Simple', title: titleText, content: cardText?:sayText]
+        responseObj.card = cardObj
+    }
 
-	if (titleText) {
-		Map cardObj = [type: 'Simple', title: titleText, content: cardText?:sayText]
-		responseObj.card = cardObj
-	}
+    Boolean shouldEndSessionDefault = true // default true
 
-	customSkillResponse.response = responseObj
+    // was a reprompt specified
+    if (repromptText) {
+        Map repromptSpeechObj = buildOutputSpeechObj(repromptText)
+        responseObj.reprompt = [outputSpeech: repromptSpeechObj]
+        shouldEndSessionDefault = false // default false if there's a reprompt
+    }
 
-	// was a reprompt specified
-	if (repromptText) {
-		Map repromptSpeechObj = buildOutputSpeechObj(repromptText)
-		customSkillResponse.reprompt = [outputSpeech: repromptSpeechObj]
-	}
+    // explicit arg overrides defaults
+    responseObj.shouldEndSession = shouldEndSessionArg?:shouldEndSessionDefault
 
-	// If we have a session map to pass. add it
-	if (transactionSessionAttributes) {
-		customSkillResponse.sessionAttributes = transactionSessionAttributes
-	}
+    // now assemble the full custom skill response object
+    Map customSkillResponse = buildBaseCustomSkillReponse()
+    // If we have a session map to pass. add it if this response doesn't end the session
+    if (transactionSessionAttributes && responseObj.shouldEndSession == false) {
+        customSkillResponse.sessionAttributes = transactionSessionAttributes
+    }
+    customSkillResponse.response = responseObj
 
-	return customSkillResponse
+    return customSkillResponse
 }
 
 // Map buildCustomSkillResponse(String titleText, String sayText, String cardText=null, Boolean doesResponseEndSession=true) {
@@ -316,10 +322,10 @@ Map buildCustomSkillResponse(Map args) {
 // }
 
 Map buildErrorResponse(String errorMessage) {
-	String title = "Skill Error"
-	String say = "A skill error has occurred. Please look at the card in your Alexa app in order to report this error."
-	String card = "To report this error, send an email to support@smartthings.com with the following information:\n$errorMessage"
-	return buildCustomSkillResponse(titleText:title, sayText:say, cardText:card)
+    String title = "Skill Error"
+    String say = "A skill error has occurred. Please look at the card in your Alexa app in order to report this error."
+    String card = "To report this error, send an email to support@smartthings.com with the following information:\n$errorMessage"
+    return buildCustomSkillResponse(titleText:title, sayText:say, cardText:card)
 }
 
 Map buildNoCardResponse(String sayText) {
@@ -348,10 +354,11 @@ Map buildSuccessDeviceResponse(command, device, confirmationText='OK') {
 }
 
 def findDeviceById(String deviceId) {
-	def device = devices?.find {
-		it.id == deviceId
-	}
-	return device
+    def device = transactionCandidateDevices?.find {
+        log.debug device
+        it.id == deviceId
+    }
+    return device
 }
 
 
@@ -366,6 +373,7 @@ def customGet() {
 
 @Field Boolean transactionIsNewSession = null
 @Field String transactionIntentName = null
+@Field String transactionStartIntent = null
 @Field String transactionDeviceKind = null
 @Field String transactionDeviceKindPlural = null
 @Field List transactionCandidateDevices = []
@@ -381,19 +389,18 @@ def customGet() {
 def customPost() {
     Map responseToLambda = [:]
     // request.JSON
-    log.debug "the JSON body of the request ${request.JSON}"
+    log.debug "the JSON body of the request\n${prettyPrint(toJson(request.JSON))}"
     def customSkillReq = request?.JSON // preserve the request
 
     // Extract session data
     transactionIsNewSession = customSkillReq?.session?.new
-    Map transactionSessionAttributes = customSkillReq?.session?.attributes?:[:] // get the session attrs
+    transactionSessionAttributes = customSkillReq?.session?.attributes?:[:] // get the session attrs
 
 
     def requestObj = customSkillReq?.request
 
     // what was the intended command?
-    String intentName = customSkillReq?.request?.intent?.name
-	transactionIntentName = intentName
+    transactionIntentName = customSkillReq?.request?.intent?.name
 
     // simplify the slot map
     Map interpretedSlots = [:]
@@ -407,7 +414,7 @@ def customPost() {
         }
     }
 
-    log.debug "intentName: $intentName; Interpreted Slots $interpretedSlots; isNewSession: $transactionIsNewSession"
+    log.debug "intentName: $transactionIntentName; Interpreted Slots $interpretedSlots; isNewSession: $transactionIsNewSession"
 
 
     /*
@@ -418,50 +425,70 @@ def customPost() {
     in the same utrterance,
 */
 
-    // specific to locks
-    if (intentName.startsWith('Lock')) {
-        transactionDeviceKind = 'lock'
-        transactionDeviceKindPlural = 'locks'
-        transactionCandidateDevices.addAll(locks?:[])
 
-        if (transactionCandidateDevices.size() == 0) {
-            // User has no matching devices
-            log.debug "No devices having the $transactionDeviceKind capability are among the user's SmartThings devices"
-            return buildCustomSkillResponse(titleText:"No $transactionDeviceKindPlural devices found", sayText:"Sorry, I couldn't find any $transactionDeviceKindPlural connected to your SmartThings setup.")
-        } else if (interpretedSlots?.AllLocks != null || transactionCandidateDevices.size() == 1) {
-            if (interpretedSlots?.AllLocks != null) {
-                // user has explicitly specified "all locks"
-                transactionUsedAllDevicesSlot = true
-            }
-            transactionDevices = transactionCandidateDevices
-        } else if (interpretedSlots?.WhichLock != null) {
-            // User has specified a specific lock
-            log.debug "Evaluating each known device to see if it matches ${interpretedSlots?.WhichLock}"
-            List deviceNameCompLog = []
-            transactionCandidateDevices.each {
-                device ->
-                String debugLine = "device display name '${device.displayName.toLowerCase()}' == WhichLock slot value '${interpretedSlots.WhichLock.toLowerCase()}' ? "
-                if (device.displayName.toLowerCase().replaceAll(' ','') == interpretedSlots.WhichLock.toLowerCase().replaceAll(' ','')) {
-                    transactionDevices.add(device)
-                    debugLine += 'YES'
-                } else {
-                    debugLine += 'NO'
+    if (transactionIsNewSession) {
+        // specific to locks
+        if (transactionIntentName.startsWith('Lock')) {
+            transactionDeviceKind = 'lock'
+            transactionDeviceKindPlural = 'locks'
+            transactionCandidateDevices.addAll(locks?:[])
+
+            if (transactionCandidateDevices.size() == 0) {
+                // User has no matching devices
+                log.debug "No devices having the $transactionDeviceKind capability are among the user's SmartThings devices"
+                return buildCustomSkillResponse(titleText:"No $transactionDeviceKindPlural devices found", sayText:"Sorry, I couldn't find any $transactionDeviceKindPlural connected to your SmartThings setup.")
+            } else if (interpretedSlots?.AllLocks != null || transactionCandidateDevices.size() == 1) {
+                if (interpretedSlots?.AllLocks != null) {
+                    // user has explicitly specified "all locks"
+                    transactionUsedAllDevicesSlot = true
                 }
-                deviceNameCompLog << debugLine
-            }
-            if (deviceNameCompLog) {
-                log.debug deviceNameCompLog.join('   \n')
-            }
-            if (transactionDevices == null || transactionDevices.size() == 0) {
-                if (transactionCandidateDevices.size() == 1) {
-                    // If we have an ambiguous WhichLock slot and ony have one lock, then assume we mean that one
-                    transactionDevices = transactionCandidateDevices
-                } else {
-                    return buildCustomSkillResponse(titleText:"Ambiguous ${transactionDeviceKind} ${interpretedSlots.WhichLock}", sayText:"I don't know which ${transactionDeviceKind} you mean by ${interpretedSlots.WhichLock}.")
+                transactionDevices = transactionCandidateDevices
+            } else if (interpretedSlots?.WhichLock != null) {
+                // User has specified a specific lock
+                log.debug "Evaluating each known device to see if it matches ${interpretedSlots?.WhichLock}"
+                List deviceNameCompLog = []
+                transactionCandidateDevices.each {
+                    device ->
+                    String debugLine = "device display name '${device.displayName.toLowerCase()}' == WhichLock slot value '${interpretedSlots.WhichLock.toLowerCase()}' ? "
+                    if (device.displayName.toLowerCase().replaceAll(' ','') == interpretedSlots.WhichLock.toLowerCase().replaceAll(' ','')) {
+                        transactionDevices.add(device)
+                        debugLine += 'YES'
+                    } else {
+                        debugLine += 'NO'
+                    }
+                    deviceNameCompLog << debugLine
                 }
+                if (deviceNameCompLog) {
+                    log.debug deviceNameCompLog.join('   \n')
+                }
+                if (transactionDevices == null || transactionDevices.size() == 0) {
+                    if (transactionCandidateDevices.size() == 1) {
+                        // If we have an ambiguous WhichLock slot and ony have one lock, then assume we mean that one
+                        transactionDevices = transactionCandidateDevices
+                    } else {
+                        return buildCustomSkillResponse(titleText:"Ambiguous ${transactionDeviceKind} ${interpretedSlots.WhichLock}", sayText:"I don't know which ${transactionDeviceKind} you mean by ${interpretedSlots.WhichLock}.")
+                    }
+                }
+                // devices should be guaranteed not null and to have length past here
             }
-            // devices should be guaranteed not null and to have length past here
         }
+    } else {
+        transactionStartIntent = transactionSessionAttributes?.initialIntent
+        if (transactionStartIntent.startsWith('Lock')) {
+            transactionDeviceKind = 'lock'
+            transactionDeviceKindPlural = 'locks'
+            transactionCandidateDevices.addAll(locks?:[])
+        }
+
+        log.debug "Evaluating each known device to see if it matches an ID in ${transactionSessionAttributes.deviceIds}"
+        transactionDevices = []
+        transactionCandidateDevices.each {
+            device ->
+            if (transactionSessionAttributes.deviceIds.contains(device.id)) {
+                transactionDevices << device
+            }
+        }
+        transactionSessionAttributes.deviceIds = null
     }
 
     // Dispatch the intent to its handler command
@@ -494,10 +521,10 @@ def customPost() {
             responseToLambda = helpCommandHandler()
             break
         case { it == 'AMAZON.YesIntent' && !transactionIsNewSession }:
-            responseToLambda = yesNoResponseHandler(true)
+            responseToLambda = yesNoDialogHandler(true)
             break
         case { it == 'AMAZON.NoIntent' && !transactionIsNewSession }:
-            responseToLambda = yesNoResponseHandler(false)
+            responseToLambda = yesNoDialogHandler(false)
             break
         case 'AMAZON.stopIntent':
         case 'AMAZON.cancelIntent':
@@ -509,9 +536,10 @@ def customPost() {
             break
     }
 
-    log.debug "Returning this to the Lambda function $responseToLambda"
+    log.debug "Returning this to the Lambda function:\n${prettyPrint(toJson(responseToLambda))}"
     return responseToLambda
 }
+
 
 /**
  * Sends a command to a device
@@ -735,13 +763,13 @@ def helpCommandHandler() {
 }
 
 def contextHelpHandler() {
-	switch (transactionIntentName) {
-		case "LockStatusIntent":
-			sayText = "You can say 'yes,' or 'no,' or 'stop'"
-			break
-		default:
-			break
-	}
+    switch (transactionIntentName) {
+        case "LockStatusIntent":
+            sayText = "You can say 'yes,' or 'no,' or 'stop'"
+            break
+        default:
+            break
+    }
 }
 
 /**
@@ -878,8 +906,6 @@ def lockQueryHandler(def singleDevice, String queryState) {
     def deviceCurrentState = singleDevice?.currentValue('lock')?.toLowerCase()?:'unknown'
 
     String outputText = ""
-	String repromptText = ""
-
     if (normalQueryState == deviceCurrentState.toLowerCase()) {
         // Yes!
         outputText = "Yes, your ${singleDevice.displayName} is $normalQueryState."
@@ -889,21 +915,22 @@ def lockQueryHandler(def singleDevice, String queryState) {
     } else {
         // No
         outputText = "No, your ${singleDevice.displayName} is ${deviceCurrentState}."
-
-        // If unlocked, follow up and ask if they'd like to lock it
-        if (deviceCurrentState == 'unlocked') {
-			// build up a session for the next stage of the dialog
-            transactionSessionAttributes.deviceIds = [singleDevice.id]
-            transactionSessionAttributes.validIntents = ['AMAZON.YesIntent', 'AMAZON.NoIntent']
-            transactionSessionAttributes.nextHandler = 'doLock'
-			repromptText = "Would you like to lock the ${singleDevice.displayName}?"
-			transactionSessionAttributes.posedQuestion = repromptText
-            outputText += " Would you like to lock it?"
-
-            // TODO Resume from here - we need to handle the clarification intent and implement the right handler
-            // to finish the session
-        }
     }
+
+    // If unlocked, follow up and ask if they'd like to lock it
+    String repromptText = ""
+    if (deviceCurrentState == 'unlocked') {
+        // build up a session for the next stage of the dialog
+        transactionSessionAttributes.deviceIds = [singleDevice.id]
+        transactionSessionAttributes.deviceId  = singleDevice.id
+        transactionSessionAttributes.initialIntent = transactionIntentName
+        transactionSessionAttributes.validResponseIntents = ['AMAZON.YesIntent', 'AMAZON.NoIntent']
+        transactionSessionAttributes.nextHandler = 'doLockDialogHandler'
+        repromptText = "Would you like me to lock the ${singleDevice.displayName} for you?"
+        transactionSessionAttributes.posedQuestion = repromptText
+        outputText += " Would you like me to lock it for you?"
+    }
+
     return buildCustomSkillResponse(titleText:"Is my ${singleDevice.displayName} $queryState?", sayText:outputText, repromptText:repromptText)
 }
 
@@ -923,71 +950,55 @@ def whichDevicesCommand(String transactionDeviceKind=device, String transactionD
     } else if (deviceList && deviceList.size() > 1 ) {
         devicesOutput =  "The $transactionDeviceKindPlural that I can operate are: \n"
         Integer ctr = 1
-		List deviceNames = []
+        List deviceNames = []
         deviceList.each {
             device ->
-			deviceNames << device.displayName
+            deviceNames << device.displayName
         }
-		devicesOutput += convoList(deviceNames)
+        devicesOutput += convoList(deviceNames)
     } else {
         devicesOutput = "I don't know about any $transactionDeviceKindPlural."
     }
     return buildCommandDeviceResponse("Which $transactionDeviceKindPlural can I control?", devicesOutput)
 }
 
-
 Map yesNoDialogHandler(Boolean isResponseYes) {
-	if (transactionIsNewSession) {
-		// Yes or No aren't valid for a new session
-		return buildNoCardResponse('I\'m not sure what you mean by that right now')
-	} else if (!isIntentValid()) {
-		// Yes an No are only valid responses if the session indicates that it was an appropriate response
-		badUtteranceResponse = "That doesn't make sense to me right now."
-		if (transactionSessionAttributes?.posedQuestion) {
-			badUtteranceResponse += posedQuestion
-		}
-		return buildNoCardResponse(badUtteranceResponse)
-	} else if (!transactionSessionAttributes?.nextHandler) {
-		return buildErrorResponse("Session is missing nextHandler for $transactionIntentName")
-	}
-	// now handle the yes/no response
-	return dialogResponseHandlers."${transactionSessionAttributes?.nextHandler}"(isResponseYes)
+    if (transactionIsNewSession) {
+        // Yes or No aren't valid for a new session
+        return buildNoCardResponse('I\'m not sure what you mean by that right now')
+    } else if (!isIntentValid()) {
+        // Yes an No are only valid responses if the session indicates that it was an appropriate response
+        badUtteranceResponse = "That doesn't make sense to me right now."
+        if (transactionSessionAttributes?.posedQuestion) {
+            badUtteranceResponse += posedQuestion
+        }
+        return buildNoCardResponse(badUtteranceResponse)
+    } else if (!transactionSessionAttributes?.nextHandler) {
+        return buildErrorResponse("Session is missing nextHandler for $transactionIntentName")
+    }
+    // now handle the yes/no response
+    return "${transactionSessionAttributes?.nextHandler}"(isResponseYes)
 }
 
-Map dialogResponseHandlers = [:]
-dialogResponseHandlers.doLock = doLock
-
-Map doLock(Boolean isResponseYes) {
-	Map responseObject
-	if (isResponseYes) {
-		def device
-		if (!transactionSessionAttributes?.deviceId) {
-			responseObject = buildErrorResponse("Session is missing deviceId for $transactionIntentName")
-		} else {
-			// get device by Id
-			device = findDeviceById(transactionSessionAttributes?.deviceId)
-		}
-		if (device) {
-			responseObject = lockCommandHandler([device])
-		} else {
-			responseObject = buildErrorResponse("Device not found for deviceId ${transactionSessionAttributes?.deviceId} in $transactionIntentName")
-		}
-
-	} else {
-		// The answer was no
-		responseObject = buildNoCardResponse("OK");
-	}
-	return responseObject
+Map doLockDialogHandler(Boolean isResponseYes) {
+    Map responseObject
+    if (isResponseYes) {
+        responseObject = lockCommandHandler(transactionDevices)
+    } else {
+        // The answer was no
+        responseObject = buildNoCardResponse("OK");
+    }
+    return responseObject
 }
 
 Boolean isIntentValid() {
-	if (transactionIntentName == null || transactionSessionAttributes?.validIntents == null)
-		return true
-	else if (transactionIntentName && transactionSessionAttributes?.validIntents &&
-		transactionSessionAttributes.validIntents.contains(transactionIntentName)) {
-		return true
-	}
-	return false
+    if (transactionIntentName == null || transactionSessionAttributes?.validResponseIntents == null)
+        return true
+    else if (transactionIntentName && transactionSessionAttributes?.validResponseIntents &&
+        transactionSessionAttributes.validResponseIntents.contains(transactionIntentName)) {
+        return true
+    }
+    return false
 }
 
 ///////////////////////////////////////////////////////////////////////////////
