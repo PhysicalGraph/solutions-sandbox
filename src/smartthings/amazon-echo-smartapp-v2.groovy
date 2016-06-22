@@ -285,7 +285,7 @@ Map buildCustomSkillResponse(Map args) {
 
 	// If we have a session map to pass. add it
 	if (transactionSessionAttributes) {
-		customSkillResponse.sessionAttributes = transactiontransactionSessionAttributes
+		customSkillResponse.sessionAttributes = transactionSessionAttributes
 	}
 
 	return customSkillResponse
@@ -294,7 +294,7 @@ Map buildCustomSkillResponse(Map args) {
 // Map buildCustomSkillResponse(String titleText, String sayText, String cardText=null, Boolean doesResponseEndSession=true) {
 //     Map customSkillResponse = buildBaseCustomSkillReponse()
 //     if (transactionSessionAttributes) {
-//         customSkillResponse.transactionSessionAttributes = transactiontransactionSessionAttributes
+//         customSkillResponse.transactionSessionAttributes = transactionSessionAttributes
 //     }
 //     Map outputSpeechObj = buildOutputSpeechObj(sayText)
 //     Map cardObj = [type: 'Simple', title: titleText, content: cardText?:sayText]
@@ -371,9 +371,7 @@ def customGet() {
 @Field List transactionCandidateDevices = []
 @Field List transactionDevices = []
 @Field Boolean transactionUsedAllDevicesSlot = false
-
-// @Field Map transactiontransactionSessionAttributes = [:]
-// @Field Boolean transactionIsNewSession = null
+@Field Map transactionSessionAttributes = [:]
 
 /**
  * handles custom skill POST requests
@@ -387,7 +385,7 @@ def customPost() {
     def customSkillReq = request?.JSON // preserve the request
 
     // Extract session data
-    Boolean transactionIsNewSession = customSkillReq?.session?.new
+    transactionIsNewSession = customSkillReq?.session?.new
     Map transactionSessionAttributes = customSkillReq?.session?.attributes?:[:] // get the session attrs
 
 
@@ -409,7 +407,7 @@ def customPost() {
         }
     }
 
-    log.debug "Interpreted Slots $interpretedSlots"
+    log.debug "intentName: $intentName; Interpreted Slots $interpretedSlots; isNewSession: $transactionIsNewSession"
 
 
     /*
@@ -468,14 +466,14 @@ def customPost() {
 
     // Dispatch the intent to its handler command
     switch (transactionIntentName) {
-        case ('LockUnlockIntent' && transactionIsNewSession):
+        case { it == 'LockUnlockIntent' && transactionIsNewSession }:
             responseToLambda = unlockFailCommandHandler(transactionDevices[0]) // Only one lock may be passed to unlock
             break
-        case ('LockDialogIntent' && transactionUsedAllDevicesSlot && transactionIsNewSession):
-        case ('LockLockIntent' && transactionIsNewSession):
+        case {it == 'LockDialogIntent' && transactionUsedAllDevicesSlot && transactionIsNewSession}:
+        case { it == 'LockLockIntent' && transactionIsNewSession }:
             responseToLambda = lockCommandHandler(transactionDevices)
             break
-        case ('LockStatusIntent' && transactionIsNewSession):
+        case { it == 'LockStatusIntent' && transactionIsNewSession }:
             if (transactionDevices.size() == 1 && interpretedSlots?.LockState != null) {
                 responseToLambda = lockQueryHandler(transactionDevices[0], interpretedSlots.LockState)
             } else if (transactionDevices.size() > 0) {
@@ -485,20 +483,20 @@ def customPost() {
                 responseToLambda = lockStatusHandler(transactionCandidateDevices)
             }
             break
-        case ('LockSupportedIntent' && transactionIsNewSession):
+        case { it == 'LockSupportedIntent' && transactionIsNewSession }:
             responseToLambda = whichDevicesCommand(transactionDeviceKind, transactionDeviceKindPlural, transactionCandidateDevices)
             break
-        case ('LaunchIntent' && transactionIsNewSession):
-        case ('LockDialogIntent' && transactionIsNewSession):
+        case { it == 'LaunchIntent' && transactionIsNewSession }:
+        case { it == 'LockDialogIntent' && transactionIsNewSession }:
             responseToLambda = launchCommandHandler()
             break
-        case ('AMAZON.HelpIntent' && transactionIsNewSession):
+        case { it == 'AMAZON.HelpIntent' && transactionIsNewSession }:
             responseToLambda = helpCommandHandler()
             break
-        case ('AMAZON.YesIntent' && !transactionIsNewSession):
+        case { it == 'AMAZON.YesIntent' && !transactionIsNewSession }:
             responseToLambda = yesNoResponseHandler(true)
             break
-        case ('AMAZON.NoIntent' && !transactionIsNewSession):
+        case { it == 'AMAZON.NoIntent' && !transactionIsNewSession }:
             responseToLambda = yesNoResponseHandler(false)
             break
         case 'AMAZON.stopIntent':
@@ -853,7 +851,7 @@ def lockStatusHandler(List deviceList) {
             outputSpeeches << "The $devicesInThisState $theVerb $knownState."
         }
     }
-    return buildCommandDeviceResponse("what is the status of", statusTarget, outputSpeeches.join('\n'))
+    return buildCommandDeviceResponse("what is the status of the", statusTarget, outputSpeeches.join('\n'))
 }
 
 /**
@@ -879,8 +877,8 @@ def lockQueryHandler(def singleDevice, String queryState) {
 
     def deviceCurrentState = singleDevice?.currentValue('lock')?.toLowerCase()?:'unknown'
 
-    String outputText
-	String repromptText
+    String outputText = ""
+	String repromptText = ""
 
     if (normalQueryState == deviceCurrentState.toLowerCase()) {
         // Yes!
@@ -900,7 +898,7 @@ def lockQueryHandler(def singleDevice, String queryState) {
             transactionSessionAttributes.nextHandler = 'doLock'
 			repromptText = "Would you like to lock the ${singleDevice.displayName}?"
 			transactionSessionAttributes.posedQuestion = repromptText
-            outputText += "Would you like to lock it?"
+            outputText += " Would you like to lock it?"
 
             // TODO Resume from here - we need to handle the clarification intent and implement the right handler
             // to finish the session
