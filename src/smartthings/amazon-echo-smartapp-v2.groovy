@@ -248,6 +248,11 @@ Map buildOutputSpeechObj(String sayText) {
 }
 
 Map buildSimpleCustomResponse(String titleText, String sayText, String cardText=null, Boolean doesResponseEndSession=true) {
+    def batteryStatus = batteryStatusReminder()
+    if (!batteryStatus.isEmpty()) {
+        sayText = "$sayText $batteryStatus"
+        cardText ?: "$cardText $batteryStatus"
+    }
     Map customSkillResponse = buildBaseCustomSkillReponse()
     if (customSkillSessionAttrs) {
         customSkillResponse.sessionAttributes = customSkillSessionAttrs
@@ -262,6 +267,11 @@ Map buildSimpleCustomResponse(String titleText, String sayText, String cardText=
 }
 
 Map buildSimpleCustomResponseWithReprompt(String titleText, String sayText, String cardText=null, Map repromptOutputSpeech=null) {
+    def batteryStatus = batteryStatusReminder()
+    if (!batteryStatus.isEmpty()) {
+        sayText = "$sayText $batteryStatus"
+        cardText ?: "$cardText $batteryStatus"
+    }
     Map customSkillResponse = buildSimpleCustomResponse(titleText, sayText, cardText, false)
     if (repromptOutputSpeech) {
         customSkillResponse.reprompt = [outputSpeech: repromptOutputSpeech]
@@ -276,6 +286,16 @@ Map buildSimpleResponseNoCard(String sayText) {
 }
 
 Map buildSimpleDeviceResponse(command, device, String outputText) {
+    def batteryStatus = batteryStatusReminder()
+    if (!batteryStatus.isEmpty()) {
+        outputText = "$outputText $batteryStatus"
+    }
+
+    def titleText = "SmartThings, $command $device"
+    return buildSimpleCustomResponse(titleText, outputText)
+}
+
+Map buildSimpleDeviceResponseNoBatteryCheck(command, device, String outputText) {
     def titleText = "SmartThings, $command $device"
     return buildSimpleCustomResponse(titleText, outputText)
 }
@@ -413,6 +433,9 @@ def customPost() {
         case 'LaunchIntent':
         case 'LockDialogIntent':
         responseToLambda = launchCommand()
+        break
+        case 'LockQueryBatteryIntent':
+        responseToLambda = batteryStatusCommand(transactionDevices)
         break
         case 'AMAZON.HelpIntent':
         responseToLambda = helpCommand()

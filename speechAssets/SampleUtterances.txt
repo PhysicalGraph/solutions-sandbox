@@ -91,3 +91,22 @@ LockSupportedIntent tell me the {DoorsOrLocks} you know of
 LockSupportedIntent tell me about the {DoorsOrLocks} you know
 LockSupportedIntent tell me about the {DoorsOrLocks} you know of
 LockSupportedIntent tell me about your {DoorsOrLocks}
+
+LockQueryBatteryIntent if {WhichLock} has low battery
+LockQueryBatteryIntent if {WhichLock} is low on power
+LockQueryBatteryIntent if {AllLocks} have low power
+LockQueryBatteryIntent if {AllLocks} have low battery
+LockQueryBatteryIntent if {AllLocks} has low power
+LockQueryBatteryIntent if {AllLocks} has low battery
+LockQueryBatteryIntent if {AllLocks} are low on battery
+LockQueryBatteryIntent what is the battery state of {AllLocks}
+LockQueryBatteryIntent what is the battery state of {WhichLock}
+LockQueryBatteryIntent what is the battery state of {AllLocks}
+LockQueryBatteryIntent what is the battery level of {WhichLock}
+LockQueryBatteryIntent what is the battery level of {AllLocks}
+LockQueryBatteryIntent about the battery status of my {WhichLock}
+LockQueryBatteryIntent about the battery status of {AllLocks}
+LockQueryBatteryIntent battery of {WhichLock}
+LockQueryBatteryIntent battery of {AllLocks}
+LockQueryBatteryIntent for the battery status of my {WhichLock}
+LockQueryBatteryIntent for the battery status of {AllLocks}
