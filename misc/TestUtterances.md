@@ -5,10 +5,10 @@ Based on the user stories described in confluence: https://smartthings.atlassian
 
 ### Devices
 * multiple physical or simulated locks, named with standard names
- * __Test Lock
- * __Front Lock
- * __Back Lock
- * __Entry Lock
+ * __Test Lock__
+ * __Front Lock__
+ * __Back Lock__
+ * __Entry Lock__
 
 * Special case No. 1
  * __Jammed Lock__
