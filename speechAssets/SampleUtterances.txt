@@ -12,7 +12,13 @@ LockUnlockIntent to {UnlockOperation} {WhichLock}
 LockUnlockIntent to {UnlockOperation} {AllLocks}
 LockUnlockIntent to {UnlockOperation} the {WhichLock}
 LockUnlockIntent to {UnlockOperation} my {WhichLock}
+LockUnlockIntent {UnlockOperation} {WhichLock}
+LockUnlockIntent {UnlockOperation} {AllLocks}
+LockUnlockIntent {UnlockOperation} the {WhichLock}
+LockUnlockIntent {UnlockOperation} my {WhichLock}
 
+LockStatusIntent are {AllLocks} {LockState}
+LockStatusIntent is {WhichLock} {LockState}
 LockStatusIntent what is the status of {WhichLock}
 LockStatusIntent what is the status of the {WhichLock}
 LockStatusIntent what is the status of my {WhichLock}
@@ -34,6 +40,8 @@ LockStatusIntent door statuses
 LockStatusIntent tell me about {WhichLock}
 LockStatusIntent tell me about the {WhichLock}
 LockStatusIntent tell me about my {WhichLock}
+LockStatusIntent to check {AllLocks}
+LockStatusIntent to check {WhichLock}
 LockStatusIntent tell me about {AllLocks}
 LockStatusIntent to tell me about {WhichLock}
 LockStatusIntent to tell me about the {WhichLock}

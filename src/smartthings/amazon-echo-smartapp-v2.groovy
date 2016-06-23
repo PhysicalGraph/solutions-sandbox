@@ -429,6 +429,11 @@ def customPost() {
     if (transactionIsNewSession) {
         // specific to locks
         if (transactionIntentName.startsWith('Lock')) {
+
+            // If unlock, immediately return since no action is necessary
+            if (intentName.equalsIgnoreCase('LockUnlockIntent')) {
+                return lockUnlockFailCommand()
+            }
             transactionDeviceKind = 'lock'
             transactionDeviceKindPlural = 'locks'
             transactionCandidateDevices.addAll(locks?:[])
@@ -525,6 +530,9 @@ def customPost() {
             break
         case { it == 'AMAZON.NoIntent' && !transactionIsNewSession }:
             responseToLambda = yesNoDialogHandler(false)
+            break
+        case 'LockQueryBatteryIntent':
+            responseToLambda = batteryStatusCommand(transactionDevices)
             break
         case 'AMAZON.stopIntent':
         case 'AMAZON.cancelIntent':
@@ -778,14 +786,10 @@ def contextHelpHandler() {
  * @return AVS response indicating that unlocking is not supported.
  */
 def unlockFailCommandHandler(def singleDevice) {
-    log.warn "Unlock ${singleDevice.displayName} *** NOT PERMITTED"
-    String targetDeviceName = singleDevice.displayName
-    if (transactionUsedAllDevicesSlot) {
-        targetDeviceName = 'all locks'
-    }
+    log.warn "Unlock  *** NOT PERMITTED"
     // TODO Needs copy
     sendNotificationEvent("For security reasons, you are not allowed to unlock doors via Alexa")
-    return buildCommandDeviceResponse("unlock", targetDeviceName, "For security reasons, that feature has been disabled. For more information, please refer to the notifications page in your SmartThings mobile app")
+    return buildSimpleDeviceResponse("unlock", "", "For security reasons, unlocking has been disabled. For more information, please refer to the notifications page in your SmartThings mobile app")
 }
 
 @Field final List KNOWN_LOCK_STATES = ['locked', 'unlocked']
@@ -881,6 +885,70 @@ def lockStatusHandler(List deviceList) {
     }
     return buildCommandDeviceResponse("what is the status of the", statusTarget, outputSpeeches.join('\n'))
 }
+
+/**
+ * Create a response text with a list of all locks with low battery.
+ *
+ * Note, check will only be done every fifth call to this method unless a list of specific devices is provided.
+ *
+ * @param devices Only check these specific devices, immediately (i.e. do not apply to every fifth request).
+ *                  If null, all devices will be checked but only every fifth call to the method.
+ * @return empty string if no locks have low battery, or a sentence including all locks with low battery
+ */
+def String batteryStatusReminder(List devices = null) {
+    // Default to checking all devices
+    def devicesToCheck = locks
+    if (devices) {
+        devicesToCheck = devices
+    }
+    def outputText = ""
+    def locksWithLowBattery = []
+
+    // Check battery for all devices every fifth command
+    if (state.checkBattery == null || state.checkBattery == 0 || devices) {
+        if (state.checkBattery == null) {
+            state.checkBattery = 0
+        }
+
+        devicesToCheck.each {
+            device ->
+                if (device.currentBattery != null && Integer.parseInt(device.currentBattery) < 12) {
+                    locksWithLowBattery << device.displayName
+                }
+        }
+        if (!locksWithLowBattery.isEmpty()) {
+            outputText = "Please note, battery is low for${convoList(locksWithLowBattery)}."
+        }
+    }
+    state.checkBattery = (state.checkBattery + 1) % 5
+    return outputText
+}
+
+
+def batteryStatusCommand(List deviceList) {
+    log.trace "batteryStatusCommand($deviceList)"
+    String statusTarget = "your devices"
+    def outputText = ""
+
+    // Get standard phrase with all devices with low battery, or empty if all are ok
+    outputText = batteryStatusReminder(deviceList)
+    if (deviceList.size() == 1) {
+        // Handle specific device
+        statusTarget = deviceList[0].displayName
+        if (outputText.isEmpty())
+            outputText = "${statusTarget} battery is OK"
+        else
+            outputText = "${statusTarget} has low battery"
+
+    } else {
+        // Handle multiple devices, use default reminder text if any device has low battery
+        if (outputText.isEmpty())
+            outputText = "No devices have low battery"
+    }
+
+    return buildSimpleDeviceResponseNoBatteryCheck("Battery status for", statusTarget, outputText)
+}
+
 
 /**
  * status of a single lock asked about by name and state
