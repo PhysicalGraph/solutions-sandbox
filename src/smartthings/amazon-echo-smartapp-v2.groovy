@@ -1045,10 +1045,11 @@ def whichDevicesHandler(String transactionDeviceKind=device, String transactionD
             deviceNames << device.displayName
         }
         devicesOutput += convoList(deviceNames)
+		devicesOutput += '.'
     } else {
         devicesOutput = "I don't know about any $transactionDeviceKindPlural."
     }
-    return buildCommandDeviceResponse("Which $transactionDeviceKindPlural can I control?", devicesOutput)
+    return buildCustomSkillResponse(titleText:"Which $transactionDeviceKindPlural can I control?", sayText:devicesOutput)
 }
 
 
@@ -1139,7 +1140,7 @@ String convoList(List listOfStrings, String conjunction="and") {
         } else if (ctr == 1) {
             conversationalList += " $conjunction $element"
         } else {
-            conversationalList += " $element,"
+            conversationalList += " $element"
             if (numStringsToJoin > 2) {
                 // No comma for "this and that"
                 conversationalList += ","
