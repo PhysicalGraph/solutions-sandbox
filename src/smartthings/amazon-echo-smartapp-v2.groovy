@@ -264,6 +264,9 @@ Map buildCustomSkillResponse(Map args, boolean checkBattery = true) {
         def batteryStatus = batteryStatusReminder()
         if (!batteryStatus.isEmpty()) {
             batteryStatus = " Please note, $batteryStatus"
+            if (!sayText.endsWith('.')) {
+                sayText = sayText + '.'
+            }
             sayText = sayText + batteryStatus
             if (cardText) {
                 cardText = cardText + batteryStatus
