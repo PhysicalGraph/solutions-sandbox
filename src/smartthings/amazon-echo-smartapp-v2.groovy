@@ -736,12 +736,11 @@ def toFahrenheit(temp) {
  */
 def launchCommandHandler() {
     String titleText = 'SmartThings Extras'
-    // FIXME - use actual blog post URL when provided by Alex
     String sayText = '''\
 Welcome to SmartThings Extras.
 SmartThings Extras is a custom skill for locking your SmartThings connected locks and arming Smart Home Monitor using Alexa.
 This skill will work with Yale, Schlage, and Kwikset locks, among others. To use it, you will need a SmartThings hub, a SmartThings account, and a lock.
-For additional information please visit our blog post at https://blog.smartthings.com, or our SmartThings knowledge base and search for SmartThings Extra.'''
+For additional information, please visit the SmartThings Support website at support.smartthings.com and search for SmartThings Extras.'''
 
     return buildCustomSkillResponse(titleText:titleText, sayText:sayText)
 }
@@ -752,18 +751,22 @@ def stopCommandHandler() {
 
 def helpCommandHandler() {
     String titleText = 'SmartThings Extras Help'
-    // FIXME - use actual blog post URL when provided by Alex
-    String sayText = '''\
-SmartThings Locks is a custom skill for locking your SmartThings connected locks using Alexa.
-Since this is a custom skill you will have to add SmartThings to your voice command. Here are just a few of the things you can do with SmartThings Locks:
+    String commonText = '''\
+SmartThings Extras is a custom skill for locking your SmartThings connected locks and arming Smart Home Monitor using Alexa.
+Since this is a custom skill, you will have to add SmartThings to your voice command.
+Here are just a few of the things you can do with SmartThings Extras:
 
 "Alexa, tell SmartThings to lock the door."
-"Alexa, ask SmartThings what locks do you know about?"
-"Alexa, ask SmartThings if all my doors are locked."
+"Alexa, ask SmartThings which doors are locked."
+"Alexa, ask SmartThings to arm my home."
 "Alexa, ask SmartThings for the battery status of the back door."
 
-For a full list of commands and supported features, please visit our blog post at https://blog.smartthings.com'''
-    return buildCustomSkillResponse(titleText:titleText, sayText:sayText)
+'''
+
+    String sayText = commonText + 'For a full list of commands and supported features, please visit the SmartThings Support website at support.smartthings.com and search for SmartThings Extras'
+    String cardText = commonText + 'For additional information, please visit the SmartThings Support website at support.smartthings.com and search for SmartThings Extras.'
+
+    return buildCustomSkillResponse(titleText:titleText, sayText:sayText, cardText:cardText)
 }
 
 def contextHelpHandler() {
