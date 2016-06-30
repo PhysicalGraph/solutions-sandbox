@@ -735,17 +735,15 @@ def toFahrenheit(temp) {
  * @return AVS response message
  */
 def launchCommandHandler() {
-    String titleText = 'SmartThings Advanced Skill'
-    String sayText = 'Welcome to SmartThings Locks. SmartThings Locks is a custom skill for locking your SmartThings connected locks using Alexa. '+
-                'This skill will work with Yale, Schlage, and Kwikset locks, among others. To use it, you will need a'+
-                'SmartThings hub, a SmartThings account, and a lock. For additional information please visit our blog post at (placeholder URL) or '+
-                'our SmartThings knowledge base and search for Alexa custom skill.'
+    String titleText = 'SmartThings Extras'
+    // FIXME - use actual blog post URL when provided by Alex
+    String sayText = '''\
+Welcome to SmartThings Extras.
+SmartThings Extras is a custom skill for locking your SmartThings connected locks and arming Smart Home Monitor using Alexa.
+This skill will work with Yale, Schlage, and Kwikset locks, among others. To use it, you will need a SmartThings hub, a SmartThings account, and a lock.
+For additional information please visit our blog post at https://blog.smartthings.com, or our SmartThings knowledge base and search for SmartThings Extra.'''
 
-    String cardText = 'Welcome to SmartThings Locks.\nSmartThings Locks is a custom skill for locking your SmartThings connected locks using Alexa.'+
-            'This skill will work with Yale, Schlage, and Kwikset locks, among others. To use it, you will need a'+
-            'SmartThings hub, a SmartThings account, and a lock.\n For additional information please visit our blog post at (placeholder URL) or'+
-            'our SmartThings knowledge base and search for Alexa custom skill.'
-    return buildCustomSkillResponse(titleText:titleText, sayText:sayText, cardText:cardText)
+    return buildCustomSkillResponse(titleText:titleText, sayText:sayText)
 }
 
 def stopCommandHandler() {
@@ -753,35 +751,25 @@ def stopCommandHandler() {
 }
 
 def helpCommandHandler() {
-    String titleText = 'SmartThings Advanced Skill Help'
+    String titleText = 'SmartThings Extras Help'
+    // FIXME - use actual blog post URL when provided by Alex
+    String sayText = '''\
+SmartThings Locks is a custom skill for locking your SmartThings connected locks using Alexa.
+Since this is a custom skill you will have to add SmartThings to your voice command. Here are just a few of the things you can do with SmartThings Locks:
 
+"Alexa, tell SmartThings to lock the door."
+"Alexa, ask SmartThings what locks do you know about?"
+"Alexa, ask SmartThings if all my doors are locked."
+"Alexa, ask SmartThings for the battery status of the back door."
 
-    String sayText = 'SmartThings Locks is a custom skill for locking your SmartThings connected locks using Alexa. Since this is a custom skill you will '+
-                        'have to add SmartThings to your voice command. Here are just a few of the things you can do with SmartThings Locks: '+
-                        'Alexa, tell SmartThings to lock the door. ' +
-                        'Alexa, ask SmartThings which doors I have?' +
-                        'Alexa, ask SmartThings if all my doors are locked?' +
-                        'Alexa, ask SmartThings for the battery status of the back door?' +
-                        'For a full list of commands and supported features, please visit our blog post at (placeholder URL).'
-
-    String cardText = 'SmartThings Locks is a custom skill for locking your SmartThings connected locks using Alexa.\n' +
-                        'Since this is a custom skill you will have to add SmartThings to your voice command. Here are just a few of the things you can do with SmartThings Locks: \n' +
-            '\n' +
-                        'Alexa, tell SmartThings to lock the door.\n' +
-                        'Alexa, ask SmartThings which doors I have?\n' +
-                        'Alexa, ask SmartThings if all my doors are locked?\n' +
-                        'Alexa, ask SmartThings for the battery status of the back door?\n' +
-                        '\n' +
-                        'For a full list of commands and supported features, please visit our blog post at (placeholder URL).'
-    String repromptText = 'What would you like to do?'
-    Map repromptObj = buildOutputSpeechObj(repromptText)
-    return buildCustomSkillResponse(titleText:titleText, sayText:sayText, cardText:cardText)
+For a full list of commands and supported features, please visit our blog post at https://blog.smartthings.com'''
+    return buildCustomSkillResponse(titleText:titleText, sayText:sayText)
 }
 
 def contextHelpHandler() {
     switch (transactionIntentName) {
         case "LockStatusIntent":
-            sayText = "You can say 'yes,' or 'no,' or 'stop'"
+            sayText = "You can say 'Yes,' or 'No.' You can also say, 'Cancel.'"
             break
         default:
             break
