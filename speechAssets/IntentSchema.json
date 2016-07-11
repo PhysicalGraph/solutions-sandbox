@@ -52,7 +52,7 @@
                    "type": "ALL_LOCKS"
                },
 			   {
-				   "name": "MyHome",
+				   "name": "Home",
 				   "type": "HOME_NAME"
 			   }
            ]
@@ -116,6 +116,10 @@
                    "type": "SHM_DISARMED_STATES"
                },
                {
+                   "name": "Selector",
+                   "type": "SELECTOR"
+               },
+               {
                    "name": "SHM",
                    "type": "SHM_NAME"
                }
@@ -129,6 +133,10 @@
                    "type": "SHM_ARM_OPS"
                },
                {
+                   "name": "Selector",
+                   "type": "SELECTOR"
+               },
+               {
                    "name": "SHM",
                    "type": "SHM_NAME"
                }
@@ -140,6 +148,10 @@
                {
                    "name": "SHMDisarmOperation",
                    "type": "SHM_DISARM_OPS"
+               },
+               {
+                   "name": "Selector",
+                   "type": "SELECTOR"
                },
                {
                    "name": "SHM",
@@ -159,7 +171,11 @@
                    "type": "LOCK_OPS"
                },
                {
-                   "name": "MyHome",
+                   "name": "Selector",
+                   "type": "SELECTOR"
+               },
+               {
+                   "name": "Home",
                    "type": "HOME_NAME"
                }
            ]

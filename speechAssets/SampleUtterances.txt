@@ -6,7 +6,7 @@ LockLockIntent {LockOperation} the {WhichLock}
 LockLockIntent {LockOperation} my {WhichLock}
 LockLockIntent {LockOperation} {WhichLock}
 LockLockIntent {LockOperation} {AllLocks}
-LockLockIntent {LockOperation} {MyHome}
+LockLockIntent {LockOperation} {Home}
 
 LockUnlockIntent to {UnlockOperation} {WhichLock}
 LockUnlockIntent to {UnlockOperation} {AllLocks}
@@ -125,19 +125,40 @@ LockQueryBatteryIntent battery of {AllLocks}
 LockQueryBatteryIntent for the battery status of my {WhichLock}
 LockQueryBatteryIntent for the battery status of {AllLocks}
 
-SHMArmMyHomeIntent to {SHMArmOperation} {MyHome}
-SHMArmMyHomeIntent to {LockOperation} and {SHMArmOperation} {MyHome}
-SHMArmMyHomeIntent to {SHMArmOperation} and {LockOperation} {MyHome}
+SHMArmIntent to {SHMArmOperation} {SHM}
+SHMArmIntent to {SHMArmOperation} {Selector} {SHM}
+SHMArmIntent {SHMArmOperation} {SHM}
+SHMArmIntent {SHMArmOperation} {Selector} {SHM}
+
+SHMDisarmIntent to {SHMDisarmOperation} {SHM}
+SHMDisarmIntent to {SHMDisarmOperation} {Selector} {SHM}
+SHMDisarmIntent {SHMDisarmOperation} {SHM}
+SHMDisarmIntent {SHMDisarmOperation} {Selector} {SHM}
+
+SHMArmMyHomeIntent to {SHMArmOperation} {Home}
+SHMArmMyHomeIntent to {SHMArmOperation} {Selector} {Home}
+SHMArmMyHomeIntent to {LockOperation} and {SHMArmOperation} {Home}
+SHMArmMyHomeIntent to {LockOperation} and {SHMArmOperation} {Selector} {Home}
+SHMArmMyHomeIntent to {SHMArmOperation} and {LockOperation} {Home}
+SHMArmMyHomeIntent to {SHMArmOperation} and {LockOperation} {Selector} {Home}
 SHMArmMyHomeIntent to {LockOperation} and {SHMArmOperation}
 SHMArmMyHomeIntent to {SHMArmOperation} and {LockOperation}
 
-SHMArmIntent to {SHMArmOperation} {SHM}
-SHMDisarmIntent to {SHMDisarmOperation} {SHM}
-
 SHMStatusIntent is {SHM} {SHMOnState}
+SHMStatusIntent is {Selector} {SHM} {SHMOnState}
 SHMStatusIntent is {SHM} {SHMOffState}
+SHMStatusIntent is {Selector} {SHM} {SHMOffState}
 SHMStatusIntent if {SHM} is {SHMOnState}
+SHMStatusIntent if {Selector} {SHM} is {SHMOnState}
 SHMStatusIntent if {SHM} is {SHMOffState}
+SHMStatusIntent if {Selector} {SHM} is {SHMOffState}
 SHMStatusIntent what is the state of {SHM}
+SHMStatusIntent what is the state of {Selector} {SHM}
 SHMStatusIntent what is the status of {SHM}
+SHMStatusIntent what is the status of {Selector} {SHM}
 SHMStatusIntent what state is {SHM} in
+SHMStatusIntent what state is {Selector} {SHM} in
+SHMStatusIntent the status of {SHM}
+SHMStatusIntent the status of {Selector} {SHM}
+SHMStatusIntent the state {SHM} is in
+SHMStatusIntent the state {Selector} {SHM} is in
