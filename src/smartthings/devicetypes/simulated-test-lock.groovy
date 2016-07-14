@@ -17,8 +17,10 @@ metadata {
 	definition (name: "Simulated Jammable Lock", namespace: "smartthings/testing", author: "bob") {
 		capability "Lock"
 		capability "battery"
+        capability "switch level"
         command "jam"
         command "nullState"
+        command "setBatteryLevel"
 	}
 
 	// Simulated lock
@@ -84,9 +86,10 @@ def jam() {
 def nullState() {
 	log.trace "nullState()"
 	sendEvent(name: "lock", value: null)
+    sendEvent(name: "battery", value: null)
 }
 
 def setBatteryLevel(Integer lvl) {
-	log.trace "setBatteryLevel(level)"
+	log.trace "setBatteryLevel($lvl)"
 	sendEvent(name: "battery", value: lvl)
 }

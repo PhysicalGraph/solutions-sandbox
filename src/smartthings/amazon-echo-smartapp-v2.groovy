@@ -228,6 +228,7 @@ def discovery() {
     [discoveredAppliances: applianceList]
 }
 
+
 /////////////////////////////////////////////
 /// Helpers to build Custom Skill responses
 ///
@@ -252,7 +253,7 @@ Map buildOutputSpeechObj(String sayText) {
 
 Map buildCustomSkillResponse(Map args) {
     Boolean shouldEndSessionArg = args?.shouldEndSession
-    String sayText = args?.sayText
+    String sayText = args?.sayText.trim()
     String titleText = args?.titleText
     String cardText = args?.cardText
     String repromptText = args?.repromptText
@@ -260,19 +261,20 @@ Map buildCustomSkillResponse(Map args) {
 
     Map responseObj = [:]
 
-    if (checkBattery) {
+    if (checkBattery == true) {
+        sayText = terminateSentence(sayText)
         def batteryStatus = batteryStatusReminder()
         if (!batteryStatus.isEmpty()) {
             batteryStatus = " Please note, $batteryStatus"
             sayText = sayText + batteryStatus
             if (cardText) {
-                cardText = cardText + batteryStatus
+                cardText = "$cardText\nNote: $batteryStatus"
             }
         }
     }
 
     if (sayText) {
-        Map outputSpeechObj = buildOutputSpeechObj(sayText)
+        Map outputSpeechObj = buildOutputSpeechObj(terminateSentence(sayText))
         responseObj.outputSpeech = outputSpeechObj
     }
 
@@ -311,7 +313,7 @@ Map buildSilentResponse() {
 
 Map buildFatalErrorResponse(String errorMessage) {
     String title = "Skill Error"
-    String say = "A skill error has occurred. Please look at the card in your Alexa app in order to report this error."
+    String say = "An unrecoverable error has occurred in this skill. Please look at the card in your Alexa app in order to report this error."
     String card = "To report this error, send an email to support@smartthings.com with the following information:\n$errorMessage"
     return buildCustomSkillResponse(titleText:title, sayText:say, cardText:card)
 }
@@ -1072,6 +1074,27 @@ Map buildSingleLockFollowupDialogResponse(Map responseData=[:], def singleDevice
     return buildCustomSkillResponse(responseData)
 }
 
+Map getBatteryStatuses(List devices = null) {
+	// Default to checking all devices
+	def devicesToCheck = locks
+	if (devices) {
+		devicesToCheck = devices
+	}
+
+	Map deviceBatteryStatus = [low: [], good: [], unknown:[]]
+	devicesToCheck.each {
+		device ->
+			if (device.currentBattery == null) {
+				deviceBatteryStatus.unknown << device.displayName
+			} else if (Integer.parseInt("$device.currentBattery") < LOW_BATTERY_PCT) {
+				deviceBatteryStatus.low << device.displayName
+			} else {
+				deviceBatteryStatus.good << device.displayName
+			}
+	}
+	return deviceBatteryStatus
+	// TODO
+}
 /**
  * Create a response text with a list of all locks with low battery.
  *
@@ -1088,26 +1111,80 @@ def String batteryStatusReminder(List devices = null) {
         devicesToCheck = devices
     }
     def outputText = ""
-    def locksWithLowBattery = []
 
     // Check battery for all devices every fifth command
     if (state.checkBattery == null || state.checkBattery == 0 || devices) {
         if (state.checkBattery == null) {
             state.checkBattery = 0
         }
+        Map devicesBatteryStatus = getBatteryStatuses(devicesToCheck)
 
-        devicesToCheck.each {
-            device ->
-                if (device.currentBattery != null && Integer.parseInt("$device.currentBattery") < LOW_BATTERY_PCT) {
-                    locksWithLowBattery << device.displayName
-                }
-        }
-        if (!locksWithLowBattery.isEmpty()) {
-            outputText = "Battery is low for ${convoList(locksWithLowBattery)}."
-        }
+        if (devicesBatteryStatus?.low?.size() > 1) {
+            outputText = "Battery is low for ${convoList(devicesBatteryStatus.low)}."
+        } else if (devicesBatteryStatus?.low?.size() == 1) {
+			outputText = "The battery in ${convoList(devicesBatteryStatus.low)} is low."
+		}
     }
     state.checkBattery = (state.checkBattery + 1) % 5
     return outputText
+}
+
+def batteryStatusCommand(List deviceList) {
+    log.trace "batteryStatusCommand($deviceList)"
+    String statusTarget = "my devices"
+    String title = "What is the battery status "
+    String outputText = ""
+    List outputTextList = []
+    String titleText = ""
+
+    if (!deviceList && transactionCandidateDevices.size() >= 1) {
+        transactionSessionAttributes.initialIntent = transactionIntentName
+        String repromptText = ""
+        if (transactionCandidateDevices.size() == 1) {
+            // no certain match, but one candidate - confirm
+            def thisDevice = transactionCandidateDevices[0]
+            // build up session
+            transactionSessionAttributes.validResponseIntents = ['AMAZON.YesIntent', 'AMAZON.NoIntent']
+            transactionSessionAttributes.nextHandler = 'doLockDialogHandler'
+            transactionSessionAttributes.deviceIds = [thisDevice.id]
+            outputText = "I couldn't find a lock by that name, but you have one named ${thisDevice.displayName}. Is this the one you meant?"
+            repromptText = "Is ${thisDevice.displayName} the lock you meant?"
+            titleText = "Shall I check the battery status for ${thisDevice.displayName}?"
+        } else {
+            // no certain match, and multiple candidates - ask again
+            transactionSessionAttributes.validResponseIntents = ['WhichLockIntent']
+            transactionSessionAttributes.nextHandler = 'doBatterySpecifiedDeviceHandler'
+            outputText = "I couldn't find a lock matching that name. Which one did you mean? You can choose from ${convoList(transactionCandidateDevices, 'or')}, or you can say 'Cancel'"
+            repromptText = "Which lock did you mean?"
+            titleText = "Would you like the battery status of one of these?"
+        }
+        return buildCustomSkillResponse(titleText:titleText, sayText:outputText, repromptText:repromptText, checkBattery:false)
+    }
+
+    // Get standard phrase with all devices with low battery, or empty if all are ok
+    Map devicesBatteryStatus = getBatteryStatuses(devicesToCheck)
+
+    // list any low battery devices first
+    if (deviceList.size() == 1 && devicesBatteryStatus.low.size() == 1) {
+        // asked for and reporting one device
+        outputTextList << "${statusTarget} has low battery."
+    } else if (!devicesBatteryStatus.low.isEmpty()) {
+        outputTextList << "Battery level is low in ${convoList(devicesBatteryStatus.low)}."
+    }
+    // list any unknonn battery level devices next
+    if (!devicesBatteryStatus.unknown.isEmpty()) {
+        outputTextList << "I can't determine the battery level for ${convoList(devicesBatteryStatus.unknown)}."
+    }
+    // list devices with good battery level last
+    if (deviceList.size() == 1 && devicesBatteryStatus.good.size() == 1) {
+        // asked for and is reporting one device
+        outputTextList << "${statusTarget} battery is OK."
+    } else if (!devicesBatteryStatus.good.isEmpty()) {
+        outputTextList << "Battery level is good for ${convoList(devicesBatteryStatus.good)}."
+    }
+    outputText = outputTextList.join('\n')
+    titleText = "What is the battery status for $statusTarget?"
+    return buildCustomSkillResponse(titleText:titleText, sayText:outputText, checkBattery:false)
 }
 
 def armHomeCommandHandler() {
@@ -1247,56 +1324,6 @@ Map querySHMStatus() {
     return shmStatus
 }
 
-def batteryStatusCommand(List deviceList) {
-    log.trace "batteryStatusCommand($deviceList)"
-    String statusTarget = "my devices"
-    String title = "What is the battery status "
-    String outputText = ""
-    String titleText = ""
-
-    if (!deviceList && transactionCandidateDevices.size() >= 1) {
-        transactionSessionAttributes.initialIntent = transactionIntentName
-        String repromptText = ""
-        if (transactionCandidateDevices.size() == 1) {
-            // no certain match, but one candidate - confirm
-            def thisDevice = transactionCandidateDevices[0]
-            // build up session
-            transactionSessionAttributes.validResponseIntents = ['AMAZON.YesIntent', 'AMAZON.NoIntent']
-            transactionSessionAttributes.nextHandler = 'doLockDialogHandler'
-            transactionSessionAttributes.deviceIds = [thisDevice.id]
-            outputText = "I couldn't find a lock by that name, but you have one named ${thisDevice.displayName}. Is this the one you meant?"
-            repromptText = "Is ${thisDevice.displayName} the lock you meant?"
-            titleText = "Shall I check the battery status for ${thisDevice.displayName}?"
-        } else {
-            // no certain match, and multiple candidates - ask again
-            transactionSessionAttributes.validResponseIntents = ['WhichLockIntent']
-            transactionSessionAttributes.nextHandler = 'doBatterySpecifiedDeviceHandler'
-            outputText = "I couldn't find a lock matching that name. Which one did you mean? You can choose from ${convoList(transactionCandidateDevices, 'or')}, or you can say 'Cancel'"
-            repromptText = "Which lock did you mean?"
-            titleText = "Would you like the battery status of one of these?"
-        }
-        return buildCustomSkillResponse(titleText:titleText, sayText:outputText, repromptText:repromptText, checkBattery:false)
-    }
-
-    // Get standard phrase with all devices with low battery, or empty if all are ok
-    outputText = batteryStatusReminder(deviceList)
-    if (deviceList.size() == 1) {
-        // Handle specific device
-        statusTarget = deviceList[0].displayName
-        if (outputText.isEmpty())
-            outputText = "${statusTarget} battery is OK"
-        else
-            outputText = "${statusTarget} has low battery"
-
-    } else {
-        // Handle multiple devices, use default reminder text if any device has low battery
-        if (outputText.isEmpty())
-            outputText = "No devices have low battery"
-    }
-    titleText = "What is the battery status for $statusTarget?"
-    return buildCustomSkillResponse(titleText:titleText, sayText:outputText, checkBattery:false)
-}
-
 /**
  * The user asked which devices Alexa knows about. Which class of devices depends on the intent the user issued
  * @param   String; The name of the type of device, singular
@@ -1406,6 +1433,15 @@ Boolean isIntentValid(String intentName=null) {
 ///////////////////////////////////////////////////////////////////////////////
 /// Message building utilities
 ///
+
+String terminateSentence(String inStr) {
+    String outStr = inStr?:''
+    if (inStr && inStr.matches(/.*?\w$/)) {
+        outStr = "${inStr}."
+    }
+    return outStr
+}
+
 String pluralizer(Integer howMany, String singularWord, String pluralWord) {
     String useWord = pluralWord
     if (howMany == 1) {
