@@ -133,36 +133,36 @@ preferences(oauthPage: "oauthPage") {
 
     // Instructions for the user on how to run appliance discovery on Echo to update its device list
     // install: true is needed here to have a Done button which will return user to SmartApp list.
-	page(name: "instructionPage", title: "Device Discovery", install: true) {
-		log.trace "instructionPage pref page"
-		section("") {
-			paragraph "You have made a change to your device list.\n\n" +
-					"Now complete device discovery by saying the following to your Echo:"
-			paragraph title: "\"Alexa, discover new devices\"", ""
-		}
-	}
+    page(name: "instructionPage", title: "Device Discovery", install: true) {
+        log.trace "instructionPage pref page"
+        section("") {
+            paragraph "You have made a change to your device list.\n\n" +
+                    "Now complete device discovery by saying the following to your Echo:"
+            paragraph title: "\"Alexa, discover new devices\"", ""
+        }
+    }
 
     page(name: "installPage", title: "Install", install: true) {
         section("") {
-			paragraph '''\
+            paragraph '''\
 This is the install page:
 
 We would have actually redirected to the provisioning URL here.
 But just tap Done in the upper right to install the app and pretend.'''
-		}
+        }
     }
 
-	// Separate page for uninstalling, we dont want the user to accidentaly uninstall since the app can only be automatically reinstalled
-	page(name: "uninstallPage", title: "Uninstall", uninstall: true, nextPage: "deviceAuthorization") {
-		// log.trace "uninstallPage pref page"
-		section("") {
-			paragraph '''\
+    // Separate page for uninstalling, we dont want the user to accidentaly uninstall since the app can only be automatically reinstalled
+    page(name: "uninstallPage", title: "Uninstall", uninstall: true, nextPage: "deviceAuthorization") {
+        // log.trace "uninstallPage pref page"
+        section("") {
+            paragraph '''\
 If you uninstall this SmartApp, remember to unlink your SmartThings account from Echo:
   1. Open the Amazon Echo application
   2. Goto Settings > Connected Home > Device Links
   3. Choose "Unlink from SmartThings"'''
-		}
-	}
+        }
+    }
 }
 
 /**
@@ -220,37 +220,39 @@ Alexa is pretty rad, too. Check this out:'''
 
 // The other option for firstPage
 def buildDeviceAuthorizationPage() {
-	// Initial page where user can pick which switches should be available to the Echo
-	// Assumption is that level switches all support regular switch as well. This is to avoid
-	// having two inputs that might confuse the user
-	log.debug "settings.allEnabled value is: ${settings?.allEnabled}. as Boolean: ${isBlanketAuthorized()}"
-	return dynamicPage(name: "firstPage", title: "Device Authorization", nextPage: "instructionPage") {
-		// log.trace "deviceAuthorization dynamic prefs page"
-		section("") {
-            String blanketALlEnabled = "Alexa can access\nall devices and routines"
+    // Initial page where user can pick which switches should be available to the Echo
+    // Assumption is that level switches all support regular switch as well. This is to avoid
+    // having two inputs that might confuse the user
+    log.debug "settings.allEnabled value is: ${settings?.allEnabled}. as Boolean: ${isBlanketAuthorized()}"
+    return dynamicPage(name: "firstPage", title: "Device Authorization", nextPage: "instructionPage") {
+        // log.trace "deviceAuthorization dynamic prefs page"
+        section("") {
+            // String blanketAllEnabled = "Alexa can access\nall devices and routines" // TODO: uncomment for routines
+            String blanketAllEnabled = "Alexa can access\nall devices and routines" // TODO: remove for routines
             String blanketSelectOnly = "Alexa can access\nonly the devices selected below"
-			input "allEnabled", "bool", title: "Allow Alexa to access\nall devices and routines", description: isBlanketAuthorized()?blanketALlEnabled:blanketSelectOnly, required: false, submitOnChange:true
-		}
+            // input "allEnabled", "bool", title: "Allow Alexa to access\nall devices and routines", description: isBlanketAuthorized()?blanketAllEnabled:blanketSelectOnly, required: false, submitOnChange:true // TODO  uncomment for routines
+            input "allEnabled", "bool", title: "Allow Alexa to access\nall devices", description: isBlanketAuthorized()?blanketAllEnabled:blanketSelectOnly, required: false, submitOnChange:true // TODO: remove for routines
+        }
 
-		if (!isBlanketAuthorized()) {
-			section("SmartThings Optimized for Smart Home") {
-				input "switches", "capability.switch", title: "Selected Switches", multiple: true, required: false
-				input "thermostats", "capability.thermostat", title: "Selected Thermostats", multiple: true, required: false
-				input "routinesEnabled", "bool", title: "Routines", options: ["All routines"], description: "Select routines", required: false
-			}
+        if (!isBlanketAuthorized()) {
+            section("SmartThings Optimized for Smart Home") {
+                input "switches", "capability.switch", title: "Selected Switches", multiple: true, required: false
+                input "thermostats", "capability.thermostat", title: "Selected Thermostats", multiple: true, required: false
+                // TODO: uncoment for routunes // input "routinesEnabled", "bool", title: "Routines", options: ["All routines"], description: "Select routines", required: false
+            }
             section("SmartThings Extras Devices") {
-				input "locks", "capability.lock", title: "Selected Locks", multiple: true, required: false
-			}
-		}
+                input "locks", "capability.lock", title: "Selected Locks", multiple: true, required: false
+            }
+        }
 
-		section("") {
-			href(name: "href",
-					title: "Uninstall",
-					required: false,
-					description: "",
-					page: "uninstallPage")
-		}
-	}
+        section("") {
+            href(name: "href",
+                    title: "Uninstall",
+                    required: false,
+                    description: "",
+                    page: "uninstallPage")
+        }
+    }
 }
 
 /**
@@ -258,9 +260,23 @@ def buildDeviceAuthorizationPage() {
  * @method isBlanketAuthorized
  * @return Value of settings.allEnabled forced to a Boolean
  */
-Boolean isBlanketAuthorized() {
-    return "${settings?.allEnabled}".toBoolean()
-}
+ Boolean isBlanketAuthorized() {
+     return booleanize(settings?.allEnabled)
+ }
+
+ Boolean areRoutinesEnabled() {
+     return booleanize(settings?.routinesEnabled)
+ }
+
+ /**
+  * Run allegedly boolean values through this in case it ends up being a string "true" or "false"
+  *  namely to avoid the fact that "false" == true
+  * @method booleanize
+  * @return Boolean coercion of input parameter
+  */
+ Boolean booleanize(inValue) {
+     return "$inValue".toBoolean()
+ }
 
 mappings {
 
@@ -333,7 +349,7 @@ def initialize() {
  */
 def discovery() {
     def switchList = getEnabledSwitches()?.collect { deviceItem(it) } ?: []
-	def thermostatList = getEnabledThermostats()?.collect { deviceItem(it) } ?: []
+    def thermostatList = getEnabledThermostats()?.collect { deviceItem(it) } ?: []
 
     def applianceList = switchList.plus thermostatList
     log.debug "discovery ${applianceList}"
@@ -1157,25 +1173,25 @@ Map buildSingleLockFollowupDialogResponse(Map responseData=[:], def singleDevice
 }
 
 Map getBatteryStatuses(List devices = null) {
-	// Default to checking all devices
-	def devicesToCheck = locks
-	if (devices) {
-		devicesToCheck = devices
-	}
+    // Default to checking all devices
+    def devicesToCheck = locks
+    if (devices) {
+        devicesToCheck = devices
+    }
 
-	Map deviceBatteryStatus = [low: [], good: [], unknown:[]]
-	devicesToCheck.each {
-		device ->
-			if (device.currentBattery == null) {
-				deviceBatteryStatus.unknown << device.displayName
-			} else if (Integer.parseInt("$device.currentBattery") < LOW_BATTERY_PCT) {
-				deviceBatteryStatus.low << device.displayName
-			} else {
-				deviceBatteryStatus.good << device.displayName
-			}
-	}
-	return deviceBatteryStatus
-	// TODO
+    Map deviceBatteryStatus = [low: [], good: [], unknown:[]]
+    devicesToCheck.each {
+        device ->
+            if (device.currentBattery == null) {
+                deviceBatteryStatus.unknown << device.displayName
+            } else if (Integer.parseInt("$device.currentBattery") < LOW_BATTERY_PCT) {
+                deviceBatteryStatus.low << device.displayName
+            } else {
+                deviceBatteryStatus.good << device.displayName
+            }
+    }
+    return deviceBatteryStatus
+    // TODO
 }
 /**
  * Create a response text with a list of all locks with low battery.
@@ -1204,8 +1220,8 @@ def String batteryStatusReminder(List devices = null) {
         if (devicesBatteryStatus?.low?.size() > 1) {
             outputText = "Battery is low for ${convoList(devicesBatteryStatus.low)}."
         } else if (devicesBatteryStatus?.low?.size() == 1) {
-			outputText = "The battery in ${convoList(devicesBatteryStatus.low)} is low."
-		}
+            outputText = "The battery in ${convoList(devicesBatteryStatus.low)} is low."
+        }
     }
     state.checkBattery = (state.checkBattery + 1) % 5
     return outputText
@@ -2029,11 +2045,11 @@ private checkIfV1Hub() {
  * @return a list of all switches accessible to Alexa
  */
 private getEnabledSwitches() {
-	if (isBlanketAuthorized) {
-		return findAllDevicesByCapability("switch")
-	} else {
-		return switches
-	}
+    if (isBlanketAuthorized()) {
+        return findAllDevicesByCapability("switch")
+    } else {
+        return switches
+    }
 }
 
 /**
@@ -2043,11 +2059,11 @@ private getEnabledSwitches() {
  * @return a list of all thermostats accessible to Alexa
  */
 private getEnabledThermostats() {
-	if (isBlanketAuthorized) {
-		return findAllDevicesByCapability("thermostat")
-	} else {
-		return thermostats
-	}
+    if (isBlanketAuthorized()) {
+        return findAllDevicesByCapability("thermostat")
+    } else {
+        return thermostats
+    }
 }
 
 /**
@@ -2057,11 +2073,11 @@ private getEnabledThermostats() {
  * @return a list of all locks accessible to Alexa
  */
 private getEnabledLocks() {
-    if (isBlanketAuthorized) {
-		return findAllDevicesByCapability("lock")
-	} else {
-		return locks
-	}
+    if (isBlanketAuthorized()) {
+        return findAllDevicesByCapability("lock")
+    } else {
+        return locks
+    }
 }
 
 /////////////////////////////////////////////////////////////////
@@ -2076,18 +2092,18 @@ private getEnabledLocks() {
  * @return a device or null if device not found
  */
 private getDeviceById(id) {
-	// Start with switches which is the most common device
-	def device = getEnabledSwitches()?.find {
-		it.id == id
-	}
+    // Start with switches which is the most common device
+    def device = getEnabledSwitches()?.find {
+        it.id == id
+    }
 
-	// If device not found, check next input
-	if (!device) {
-		device = getEnabledThermostats()?.find {
-			it.id == id
-		}
-	}
-	return device
+    // If device not found, check next input
+    if (!device) {
+        device = getEnabledThermostats()?.find {
+            it.id == id
+        }
+    }
+    return device
 }
 
 private getDeviceByName(String spokenDeviceName) {
