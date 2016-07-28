@@ -18,9 +18,11 @@ definition(
 		singleInstance: true
 )
 
-// Version 1.1.10
+// Version 1.1.11
 
 // Changelist:
+// Version 1.1.11
+// Added device blacklist
 
 // 1.1.10
 // Dynamic preferences
@@ -115,7 +117,7 @@ preferences(oauthPage: "oauthPage") {
 	// This is a static page for generating the OAUTH page - this is not shown in the SmartApp
 	page(name: "oauthPage", title: "", nextPage: "instructionPage", uninstall: false) {
 		section("") {
-			input "allEnabled", type: "enum", title: "Grant access to all devices?", options: [[(true): "All devices shown below"]], defaultValue: false, multiple: false, required: false
+			input "allEnabled", type: "enum", title: "Grant access to all devices and routines?", options: [[(true): "All devices and routines shown below"]], defaultValue: false, multiple: false, required: false
 			paragraph title: "Or choose individual devices below", ""
 			input "switches", "capability.switch", title: "My Switches", multiple: true, required: false
 			input "thermostats", "capability.thermostat", title: "My Thermostats", multiple: true, required: false
@@ -142,8 +144,8 @@ preferences(oauthPage: "oauthPage") {
 	// Separate page for uninstalling, we dont want the user to accidentaly uninstall since the app can only be automatically reinstalled
 	page(name: "uninstallPage", title: "Uninstall", uninstall: true, nextPage: "deviceAuthorization") {
 		section("") {
-			paragraph "If you uninstall this SmartApp, remember to unlink your SmartThings account from Echo:\n\n" +
-					"1. Open the Amazon Echo application\n" +
+			paragraph "If you uninstall this SmartApp, remember to unlink your SmartThings account from Alexa:\n\n" +
+					"1. Open the Amazon Alexa application\n" +
 					"2. Goto Settings > Connected Home > Device Links\n" +
 					"3. Choose \"Unlink from SmartThings\""
 		}
@@ -238,7 +240,7 @@ def updated() {
 
 def initialize() {
 	log.debug "initialize"
-	
+
 	if (!checkIfV1Hub()) {
 		if (state.heartbeatDevices == null) {
 			state.heartbeatDevices = [:]
@@ -255,7 +257,7 @@ def initialize() {
  * @return a list of available devices and each device's supported information
  */
 def discovery() {
-	def switchList = getEnabledSwitches()?.collect { deviceItem(it) } ?: []
+	def switchList = getEnabledSwitches()?.findAll{isDeviceAllowed(it)}.collect {deviceItem(it)} ?: []
 	def thermostatList = getEnabledThermostats()?.collect { deviceItem(it) } ?: []
 
 	def applianceList = switchList.plus thermostatList
@@ -395,7 +397,7 @@ private deviceItem(it) {
 private routineItem(it) {
 	def actions = []
 	actions.add "turnOn"
-	it ? [applianceId: it.id, manufacturerName: "SmartThings", modelName: "Routine", version: "V1.0", friendlyName: it.label, friendlyDescription: "SmartThings: Routine", isReachable: true, actions: actions] : null
+	it ? [applianceId: it.id, manufacturerName: "SmartThings", modelName: "SmartThings", version: "V1.0", friendlyName: it.label, friendlyDescription: "Routine connected via SmartThings", isReachable: true, actions: actions] : null
 }
 
 /**
@@ -925,6 +927,9 @@ private checkDeviceOnLine(device) {
 	return result
 }
 
+private boolean isDeviceAllowed(device) {
+	return !(["Samsung Range"].contains(device.getTypeName()))
+}
 /**
  * Checks if the current hub is V1 which we do not support heartbeat for
  * @return true if V1, false if newer model like V2 or TV
@@ -1018,4 +1023,5 @@ private getDevice(id) {
 	}
 	return device
 }
+
 
