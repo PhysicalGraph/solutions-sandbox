@@ -16,7 +16,7 @@
  		iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/App-AmazonEcho@2x.png",
  		iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/App-AmazonEcho@3x.png",
  		oauth: [displayName: "Amazon Home Skill RC", displayLink: ""],
-        singleInstance: true
+		singleInstance: true
  )
 
 // Version 1.1.10
@@ -260,9 +260,9 @@ def initialize() {
  * @return a list of available devices and each device's supported information
  */
 def discovery() {
-    // removing isDeviceAllowed filtering for now - This is done on the backend for routines only
-    // def switchList = getEnabledSwitches()?.findAll{isDeviceAllowed(it)}.collect {deviceItem(it)} ?: []
-    def switchList = getEnabledSwitches()?.collect { deviceItem(it) } ?: []
+	// removing isDeviceAllowed filtering for now - This is done on the backend for routines only
+	// def switchList = getEnabledSwitches()?.findAll{isDeviceAllowed(it)}.collect {deviceItem(it)} ?: []
+	def switchList = getEnabledSwitches()?.collect { deviceItem(it) } ?: []
 	def thermostatList = getEnabledThermostats()?.collect { deviceItem(it) } ?: []
 
 	def applianceList = switchList.plus thermostatList
@@ -933,19 +933,19 @@ private checkDeviceOnLine(device) {
 }
 
 private boolean isDeviceAllowed(device) {
-    // by device type name
-    string deviceTypeName = device.getTypeName()
+	// by device type name
+	string deviceTypeName = device.getTypeName()
 	boolean isDeviceExcludedByTypeName = DEVICE_TYPE_NAME_EXCLUSION_LIST.contains(deviceTypeName)
-    def forbiddenCap = device.capabilities.find {
-        DEVICE_CAPABILITY_EXCLUSION_LIST.contains(it.name)
-    }
+	def forbiddenCap = device.capabilities.find {
+		DEVICE_CAPABILITY_EXCLUSION_LIST.contains(it.name)
+	}
 
-    if (isDeviceExcludedByTypeName || forbiddenCap != null) {
-        String exclusionReason = isDeviceExcludedByTypeName?"type name $deviceTypeName":"capability $forbiddenCap.name"
-        log.info "Device $device.displayName is excluded by $exclusionReason"
-        return false
-    }
-    return true
+	if (isDeviceExcludedByTypeName || forbiddenCap != null) {
+		String exclusionReason = isDeviceExcludedByTypeName?"type name $deviceTypeName":"capability $forbiddenCap.name"
+		log.info "Device $device.displayName is excluded by $exclusionReason"
+		return false
+	}
+	return true
 }
 /**
  * Checks if the current hub is V1 which we do not support heartbeat for
